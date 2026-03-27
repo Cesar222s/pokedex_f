@@ -54,6 +54,17 @@ export const useSocialStore = defineStore('social', {
       }
     },
 
+    async sendFriendRequestByCode(code) {
+      this.error = null;
+      try {
+        await api.post('/social/friends/request/code', { code });
+        await this.fetchRequests();
+      } catch (err) {
+        this.error = err.response?.data?.error || 'Failed to send request by code';
+        throw err;
+      }
+    },
+
     async acceptRequest(requestId) {
       try {
         await api.post(`/social/friends/accept/${requestId}`);

@@ -3,37 +3,34 @@
     <div class="container">
       <div class="page-header">
         <h1>👥 Social</h1>
-        <p class="text-muted">Encuentra entrenadores y reta a tus amigos</p>
+        <p class="text-muted">Conecta con otros entrenadores usando tu código</p>
       </div>
 
       <div class="social-grid">
-        <!-- Left: Search & Requests -->
+        <!-- Left: Your Code & Requests -->
         <div class="social-sidebar">
-          <!-- Search Users -->
-          <div class="glass-card section-card">
-            <h2>🔍 Buscar Entrenadores</h2>
-            <div class="search-box">
-              <input type="text" class="input" placeholder="Buscar por usuario o correo..."
-                v-model="searchQuery" @input="onSearch" id="search-users" />
+          <!-- Your Friend Code -->
+          <div class="glass-card section-card my-code-card">
+            <h2>🏷️ Tu Código de Entrenador</h2>
+            <div class="code-display" @click="copyCode">
+              <span class="code-text">{{ currentUser?.friendCode || 'CARGANDO...' }}</span>
+              <span class="copy-hint" v-if="!copied">Copiar</span>
+              <span class="copy-hint success" v-else>¡Copiado!</span>
             </div>
+          </div>
 
-            <div v-if="searchResults.length > 0" class="search-results stagger">
-              <div v-for="user in searchResults" :key="user._id" class="user-card">
-                <div class="user-avatar">{{ user.username.charAt(0).toUpperCase() }}</div>
-                <div class="user-info">
-                  <span class="user-name">{{ user.username }}</span>
-                  <span class="user-email">{{ user.email }}</span>
-                </div>
-                <button class="btn btn-primary btn-sm"
-                  @click="sendRequest(user.email)"
-                  :disabled="isPending(user._id) || isFriend(user._id)">
-                  {{ isFriend(user._id) ? '✓ Amigos' : isPending(user._id) ? 'Pendiente' : '+ Añadir' }}
+          <!-- Add by Code -->
+          <div class="glass-card section-card">
+            <h2>➕ Agregar por Código</h2>
+            <div class="search-box">
+              <div class="flex gap-1">
+                <input type="text" class="input flex-1" placeholder="Ej: X8Y2Z9"
+                  v-model="friendCodeInput" maxlength="6" id="friend-code-input" />
+                <button class="btn btn-primary" @click="addByCode" :disabled="!friendCodeInput || friendCodeInput.length < 6">
+                  Agregar
                 </button>
               </div>
             </div>
-            <p v-else-if="searchQuery.length > 1 && !searching" class="text-muted text-center" style="margin-top:1rem">
-              No se encontraron entrenadores
-            </p>
           </div>
 
           <!-- Solicitudes Pendientes -->
@@ -76,7 +73,7 @@
 
             <div v-if="friends.length === 0" class="empty-state" style="padding:2rem">
               <div class="emoji">🤝</div>
-              <p>Aún no tienes amigos. ¡Busca entrenadores arriba!</p>
+              <p>Aún no tienes amigos. ¡Comparte tu código para conectar!</p>
             </div>
 
             <div v-else class="friends-list stagger">
@@ -151,42 +148,37 @@ import { useRouter } from 'vue-router';
 import { useSocialStore } from '@/stores/social';
 import { useBattleStore } from '@/stores/battle';
 import { useTeamsStore } from '@/stores/teams';
+import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
 const socialStore = useSocialStore();
 const battleStore = useBattleStore();
 const teamsStore = useTeamsStore();
+const authStore = useAuthStore();
 
+const currentUser = computed(() => authStore.user);
 const friends = computed(() => socialStore.friends);
 const incomingRequests = computed(() => socialStore.incomingRequests);
 const outgoingRequests = computed(() => socialStore.outgoingRequests);
-const searchResults = computed(() => socialStore.searchResults);
 
-const searchQuery = ref('');
-const searching = ref(false);
+const friendCodeInput = ref('');
 const message = ref('');
 const messageType = ref('alert-success');
 const challengingFriend = ref(null);
 const selectedTeam = ref(null);
 const challengeError = ref('');
+const copied = ref(false);
 
-let searchDebounce;
-function onSearch() {
-  clearTimeout(searchDebounce);
-  searchDebounce = setTimeout(() => socialStore.searchUsers(searchQuery.value), 350);
-}
-
-function isPending(userId) {
-  return outgoingRequests.value.some(r => r.to?._id === userId);
-}
 function isFriend(userId) {
   return friends.value.some(f => f._id === userId);
 }
 
-async function sendRequest(email) {
+async function addByCode() {
+  if (!friendCodeInput.value || friendCodeInput.value.length < 6) return;
   try {
-    await socialStore.sendFriendRequest(email);
+    await socialStore.sendFriendRequestByCode(friendCodeInput.value);
     showMessage('¡Solicitud de amistad enviada!', 'alert-success');
+    friendCodeInput.value = '';
   } catch (err) {
     showMessage(err.response?.data?.error || 'Error al enviar solicitud', 'alert-error');
   }
@@ -204,6 +196,13 @@ async function reject(requestId) {
 async function removeFriend(friendId) {
   await socialStore.removeFriend(friendId);
   showMessage('Amigo eliminado', 'alert-error');
+}
+
+function copyCode() {
+  if (!currentUser.value?.friendCode) return;
+  navigator.clipboard.writeText(currentUser.value.friendCode);
+  copied.value = true;
+  setTimeout(() => copied.value = false, 2000);
 }
 
 function isTeamReady(team) {

@@ -68,7 +68,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(12, 14, 24, 0.8);
+  background: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
@@ -98,6 +98,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 
 .brand-icon {
   font-size: 1.6rem;
+  color: var(--accent);
   animation: spin 8s linear infinite;
 }
 

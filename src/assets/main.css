@@ -4,38 +4,39 @@
    Design Tokens
    ═══════════════════════════════════════════════ */
 :root {
-  /* Base dark palette */
-  --bg-primary: hsl(230, 25%, 7%);
-  --bg-secondary: hsl(230, 22%, 11%);
-  --bg-tertiary: hsl(230, 20%, 15%);
-  --bg-card: rgba(255, 255, 255, 0.04);
-  --bg-card-hover: rgba(255, 255, 255, 0.08);
-  --bg-glass: rgba(255, 255, 255, 0.06);
+  /* Base premium palette (Black & Red) */
+  --bg-primary: hsl(0, 0%, 0%);
+  --bg-secondary: hsl(0, 0%, 5%);
+  --bg-tertiary: hsl(0, 0%, 8%);
+  --bg-card: rgba(255, 255, 255, 0.03);
+  --bg-card-hover: rgba(255, 255, 255, 0.06);
+  --bg-glass: rgba(0, 0, 0, 0.8);
 
   /* Text */
-  --text-primary: hsl(0, 0%, 95%);
-  --text-secondary: hsl(230, 10%, 65%);
-  --text-muted: hsl(230, 10%, 45%);
+  --text-primary: #ffffff;
+  --text-secondary: #cccccc;
+  --text-muted: #888888;
 
-  /* Accent */
-  --accent: hsl(210, 100%, 60%);
-  --accent-hover: hsl(210, 100%, 70%);
-  --accent-glow: hsla(210, 100%, 60%, 0.3);
+  /* Accent (Red) */
+  --accent: #ff1c1c;
+  --accent-hover: #ff4d4d;
+  --accent-glow: rgba(255, 28, 28, 0.25);
+  --accent-dark: #990000;
 
   /* Status */
-  --success: hsl(145, 65%, 50%);
-  --warning: hsl(38, 95%, 55%);
-  --danger: hsl(0, 75%, 55%);
+  --success: #00ff88;
+  --warning: #ffcc00;
+  --danger: #ff4444;
 
   /* Borders */
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.15);
+  --border: rgba(255, 255, 255, 0.07);
+  --border-hover: rgba(255, 28, 28, 0.3);
 
   /* Shadows */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 30px var(--accent-glow);
+  --shadow-sm: 0 4px 10px rgba(0, 0, 0, 0.8);
+  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.9);
+  --shadow-lg: 0 12px 50px rgba(0, 0, 0, 1);
+  --shadow-glow: 0 0 40px var(--accent-glow);
 
   /* Typography */
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -174,9 +175,10 @@ h4 { font-size: 1.25rem; }
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent), hsl(230, 100%, 55%));
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
   color: white;
   box-shadow: 0 4px 15px var(--accent-glow);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .btn-primary:hover {
@@ -568,4 +570,51 @@ select.input {
 .pwa-toast .icon {
   margin-right: 0.5rem;
   font-size: 1.1rem;
+}
+
+/* ═══════════════════════════════════════════════
+   Social Specific Styles
+   ═══════════════════════════════════════════════ */
+.my-code-card {
+  text-align: center;
+}
+
+.code-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(255, 0, 0, 0.05);
+  border: 1.5px dashed var(--accent);
+  border-radius: var(--radius-md);
+  margin-top: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.code-display:hover {
+  background: rgba(255, 0, 0, 0.1);
+  transform: scale(1.02);
+}
+
+.code-text {
+  font-family: 'Outfit', monospace;
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  text-shadow: 0 0 15px var(--accent-glow);
+}
+
+.copy-hint {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
+
+.copy-hint.success {
+  color: var(--success);
 }
