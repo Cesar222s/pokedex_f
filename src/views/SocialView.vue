@@ -273,17 +273,32 @@ onMounted(() => {
 }
 
 .user-avatar, .friend-avatar {
-  width: 40px; height: 40px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), hsl(230, 100%, 55%));
+  width: 44px; height: 44px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--comp-accent), var(--comp-accent-dark));
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.1rem; font-weight: 700; color: white;
+  font-size: 1.2rem; font-weight: 800; color: white;
   flex-shrink: 0;
+  box-shadow: 0 4px 12px var(--comp-accent-glow);
+  border: 1px solid rgba(255,255,255,0.2);
 }
 
 .user-avatar.pending {
-  background: linear-gradient(135deg, var(--warning), hsl(38, 70%, 45%));
+  background: linear-gradient(135deg, var(--text-muted), var(--bg-tertiary));
   opacity: 0.7;
+  box-shadow: none;
+}
+
+.friend-card {
+  border-left: 3px solid var(--comp-accent);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.friend-card:hover {
+  transform: translateX(5px);
+  background: var(--bg-card-hover);
+  border-color: var(--comp-accent-hover);
+  box-shadow: -5px 0 20px var(--comp-accent-glow);
 }
 
 .user-info, .friend-info {

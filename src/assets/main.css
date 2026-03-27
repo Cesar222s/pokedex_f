@@ -17,11 +17,17 @@
   --text-secondary: #cccccc;
   --text-muted: #888888;
 
-  /* Accent (Red) */
+  /* Accent (Red) - For ME/SELF */
   --accent: #ff1c1c;
   --accent-hover: #ff4d4d;
   --accent-glow: rgba(255, 28, 28, 0.25);
   --accent-dark: #990000;
+
+  /* Accent (Blue/Azure) - For COMPANIONS/OTHERS */
+  --comp-accent: #00d2ff;
+  --comp-accent-hover: #33e1ff;
+  --comp-accent-glow: rgba(0, 210, 255, 0.25);
+  --comp-accent-dark: #0087a3;
 
   /* Status */
   --success: #00ff88;

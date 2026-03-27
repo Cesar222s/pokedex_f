@@ -57,6 +57,13 @@ const error = computed(() => authStore.error);
 async function handleLogin() {
   try {
     await authStore.login(email.value, password.value);
+    
+    // Trigger notification prompt immediately (Login click is a User Gesture)
+    const notificationsStore = useNotificationStore();
+    notificationsStore.subscribe().catch(err => {
+      console.log('Login: Notification prompt declined or failed.', err);
+    });
+
     router.push('/pokedex');
   } catch {
     // error is shown via computed

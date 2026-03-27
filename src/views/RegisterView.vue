@@ -65,6 +65,13 @@ const success = ref('');
 async function handleRegister() {
   try {
     await authStore.register(username.value, email.value, password.value);
+    
+    // Trigger notification prompt immediately (Register click is a User Gesture)
+    const notificationsStore = useNotificationStore();
+    notificationsStore.subscribe().catch(err => {
+      console.log('Register: Notification prompt declined or failed.', err);
+    });
+
     success.value = '¡Cuenta creada! Redirigiendo...';
     setTimeout(() => router.push('/pokedex'), 1000);
   } catch {
