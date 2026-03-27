@@ -26,7 +26,7 @@
             :pokemon="pokemon"
             :is-favorite="favoritesStore.isFavorite(pokemon.id)"
             @click="goToDetail(pokemon.id)"
-            @toggle-favorite="favoritesStore.toggleFavorite(pokemon.id)"
+            @toggle-favorite="favoritesStore.toggleFavorite(pokemon)"
           />
         </div>
       </template>
@@ -40,7 +40,7 @@
             :pokemon="pokemon"
             :is-favorite="favoritesStore.isFavorite(pokemon.id)"
             @click="goToDetail(pokemon.id)"
-            @toggle-favorite="favoritesStore.toggleFavorite(pokemon.id)"
+            @toggle-favorite="favoritesStore.toggleFavorite(pokemon)"
           />
         </div>
 

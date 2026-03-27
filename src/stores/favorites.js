@@ -3,12 +3,13 @@ import api from '@/services/api';
 
 export const useFavoritesStore = defineStore('favorites', {
   state: () => ({
-    favoriteIds: [],
+    favorites: [], // Now an array of { pokemonId, name, sprite }
     loading: false
   }),
 
   getters: {
-    isFavorite: (state) => (pokemonId) => state.favoriteIds.includes(pokemonId)
+    favoriteIds: (state) => state.favorites.map(f => f.pokemonId),
+    isFavorite: (state) => (pokemonId) => state.favorites.some(f => f.pokemonId === pokemonId)
   },
 
   actions: {
@@ -16,7 +17,7 @@ export const useFavoritesStore = defineStore('favorites', {
       this.loading = true;
       try {
         const { data } = await api.get('/favorites');
-        this.favoriteIds = data.favorites;
+        this.favorites = data.favorites || [];
       } catch (err) {
         console.error('Failed to fetch favorites:', err);
       } finally {
@@ -24,33 +25,41 @@ export const useFavoritesStore = defineStore('favorites', {
       }
     },
 
-    async addFavorite(pokemonId) {
+    async addFavorite(pokemon) {
+      // Optimistic update
+      const favObj = {
+        pokemonId: pokemon.id,
+        name: pokemon.name,
+        sprite: pokemon.sprite || pokemon.sprites?.official_artwork || pokemon.sprites?.front_default
+      };
+      
+      this.favorites.push(favObj);
+
       try {
-        await api.post(`/favorites/${pokemonId}`);
-        if (!this.favoriteIds.includes(pokemonId)) {
-          this.favoriteIds.push(pokemonId);
-        }
+        await api.post('/favorites', favObj);
       } catch (err) {
-        console.error('Failed to add favorite:', err);
-        throw err;
+        console.error('Failed to add favorite (Background Sync will handle it):', err);
+        // We DON'T remove it here because SW Background Sync will retry it
       }
     },
 
     async removeFavorite(pokemonId) {
+      // Optimistic update
+      const originalFavorites = [...this.favorites];
+      this.favorites = this.favorites.filter(f => f.pokemonId !== pokemonId);
+
       try {
         await api.delete(`/favorites/${pokemonId}`);
-        this.favoriteIds = this.favoriteIds.filter(id => id !== pokemonId);
       } catch (err) {
-        console.error('Failed to remove favorite:', err);
-        throw err;
+        console.error('Failed to remove favorite (Background Sync will handle it):', err);
       }
     },
 
-    async toggleFavorite(pokemonId) {
-      if (this.isFavorite(pokemonId)) {
-        await this.removeFavorite(pokemonId);
+    async toggleFavorite(pokemon) {
+      if (this.isFavorite(pokemon.id)) {
+        await this.removeFavorite(pokemon.id);
       } else {
-        await this.addFavorite(pokemonId);
+        await this.addFavorite(pokemon);
       }
     }
   }

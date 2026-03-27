@@ -209,7 +209,7 @@ function statLabel(name) {
 }
 
 async function toggleFav() {
-  await favoritesStore.toggleFavorite(pokemon.value.id);
+  await favoritesStore.toggleFavorite(pokemon.value);
 }
 
 function isInTeam(team) {
