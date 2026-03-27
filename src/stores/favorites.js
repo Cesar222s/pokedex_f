@@ -30,23 +30,35 @@ export const useFavoritesStore = defineStore('favorites', {
       const favObj = {
         pokemonId: pokemon.id,
         name: pokemon.name,
-        sprite: pokemon.sprite || pokemon.sprites?.official_artwork || pokemon.sprites?.front_default
+        sprite: pokemon.sprite || pokemon.sprites?.official_artwork || pokemon.sprites?.front_default,
+        types: pokemon.types || []
       };
       
       this.favorites.push(favObj);
+
+      // Toast feedback
+      window.dispatchEvent(new CustomEvent('app-toast', { 
+        detail: { message: `¡${pokemon.name} añadido a favoritos! ❤️`, type: 'success' } 
+      }));
 
       try {
         await api.post('/favorites', favObj);
       } catch (err) {
         console.error('Failed to add favorite (Background Sync will handle it):', err);
-        // We DON'T remove it here because SW Background Sync will retry it
       }
     },
 
     async removeFavorite(pokemonId) {
       // Optimistic update
-      const originalFavorites = [...this.favorites];
+      const fav = this.favorites.find(f => f.pokemonId === pokemonId);
+      const name = fav?.name || 'Pokémon';
+      
       this.favorites = this.favorites.filter(f => f.pokemonId !== pokemonId);
+
+      // Toast feedback
+      window.dispatchEvent(new CustomEvent('app-toast', { 
+        detail: { message: `¡${name} eliminado de favoritos!`, type: 'info' } 
+      }));
 
       try {
         await api.delete(`/favorites/${pokemonId}`);

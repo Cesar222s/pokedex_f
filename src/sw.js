@@ -54,8 +54,11 @@ registerRoute(
 );
 
 // - Backend API (NetworkFirst + Background Sync)
+// We use a broader match to ensure cross-origin Railway API is caught
+const apiMatch = ({ url }) => url.pathname.startsWith('/api/');
+
 registerRoute(
-  ({ url }) => url.pathname.startsWith('/api/'),
+  apiMatch,
   new NetworkFirst({
     cacheName: 'api-cache',
     plugins: [
@@ -67,7 +70,7 @@ registerRoute(
 );
 
 registerRoute(
-  ({ url }) => url.pathname.startsWith('/api/'),
+  apiMatch,
   new NetworkFirst({
     cacheName: 'api-cache',
     plugins: [
@@ -79,7 +82,7 @@ registerRoute(
 );
 
 registerRoute(
-  ({ url }) => url.pathname.startsWith('/api/'),
+  apiMatch,
   new NetworkFirst({
     cacheName: 'api-cache',
     plugins: [

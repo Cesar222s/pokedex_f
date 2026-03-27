@@ -24,26 +24,21 @@
     </div>
   </div>
 
-  <div v-if="syncMessage" class="pwa-toast sync-toast animate-fade-in-up">
-    <div class="message">
-      <span class="icon">📦</span>
-      Sin conexión. Tu acción se enviará automáticamente al recuperar internet.
-    </div>
-    <button class="btn btn-secondary btn-sm" @click="syncMessage = false">Entendido</button>
-  </div>
-
   <div v-if="configuringPrompt" class="pwa-toast configuring-toast animate-fade-in-up">
     <div class="message">
       <span class="icon">📡</span>
       Configurando notificaciones... Por favor, pulsa <b>Permitir</b> si aparece el aviso del navegador.
     </div>
   </div>
+
+  <AppToast />
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import NavBar from '@/components/NavBar.vue';
+import AppToast from '@/components/Toast.vue';
 import { useRegisterSW } from 'virtual:pwa-register/vue';
 import { useNotificationStore } from '@/stores/notifications';
 

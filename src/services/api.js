@@ -11,12 +11,6 @@ const api = axios.create({
 // Request interceptor to add JWT token and check offline status
 api.interceptors.request.use(
   (config) => {
-    // Immediate offline check for WRITES (to trigger PWA sync UI faster)
-    if (!navigator.onLine && ['post', 'put', 'delete'].includes(config.method?.toLowerCase())) {
-      window.dispatchEvent(new CustomEvent('pwa-sync-queued'));
-      return Promise.reject(new Error('OFFLINE'));
-    }
-
     const token = localStorage.getItem('pokedex_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
