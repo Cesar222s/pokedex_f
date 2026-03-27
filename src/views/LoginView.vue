@@ -46,9 +46,11 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import { useNotificationStore } from '@/stores/notifications';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const notificationsStore = useNotificationStore();
 
 const email = ref('');
 const password = ref('');
@@ -59,7 +61,6 @@ async function handleLogin() {
     await authStore.login(email.value, password.value);
     
     // Trigger notification prompt immediately (Login click is a User Gesture)
-    const notificationsStore = useNotificationStore();
     notificationsStore.subscribe().catch(err => {
       console.log('Login: Notification prompt declined or failed.', err);
     });
@@ -96,14 +97,14 @@ async function handleLogin() {
   animation: float var(--dur) ease-in-out infinite;
 }
 
-.bg-ball:nth-child(1) { width: 300px; height: 300px; top: -10%; left: -5%; background: #6890F0; --dur: 6s; }
-.bg-ball:nth-child(2) { width: 200px; height: 200px; top: 60%; right: -5%; background: #F08030; --dur: 8s; }
-.bg-ball:nth-child(3) { width: 150px; height: 150px; top: 20%; right: 15%; background: #78C850; --dur: 7s; }
-.bg-ball:nth-child(4) { width: 250px; height: 250px; bottom: -5%; left: 10%; background: #F85888; --dur: 5s; }
-.bg-ball:nth-child(5) { width: 100px; height: 100px; top: 40%; left: 30%; background: #7038F8; --dur: 9s; }
-.bg-ball:nth-child(6) { width: 180px; height: 180px; bottom: 20%; right: 25%; background: #F8D030; --dur: 7.5s; }
-.bg-ball:nth-child(7) { width: 120px; height: 120px; top: 70%; left: 60%; background: #98D8D8; --dur: 6.5s; }
-.bg-ball:nth-child(8) { width: 350px; height: 350px; top: 30%; right: -10%; background: #EE99AC; --dur: 10s; }
+.bg-ball:nth-child(1) { width: 300px; height: 300px; top: -10%; left: -5%; background: var(--accent); --dur: 6s; }
+.bg-ball:nth-child(2) { width: 200px; height: 200px; top: 60%; right: -5%; background: var(--accent-dark); --dur: 8s; }
+.bg-ball:nth-child(3) { width: 150px; height: 150px; top: 20%; right: 15%; background: #ffffff; --dur: 7s; }
+.bg-ball:nth-child(4) { width: 250px; height: 250px; bottom: -5%; left: 10%; background: var(--accent); --dur: 5s; }
+.bg-ball:nth-child(5) { width: 100px; height: 100px; top: 40%; left: 30%; background: #ffffff; --dur: 9s; }
+.bg-ball:nth-child(6) { width: 180px; height: 180px; bottom: 20%; right: 25%; background: var(--accent-dark); --dur: 7.5s; }
+.bg-ball:nth-child(7) { width: 120px; height: 120px; top: 70%; left: 60%; background: var(--accent); --dur: 6.5s; }
+.bg-ball:nth-child(8) { width: 350px; height: 350px; top: 30%; right: -10%; background: #ffffff; --dur: 10s; }
 
 .auth-container {
   width: 100%;
