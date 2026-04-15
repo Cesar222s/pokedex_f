@@ -49,10 +49,11 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useNotificationStore } from '@/stores/notifications';
+import { addPendingRegistration, getAllPendingRegistrations, removePendingRegistration } from '@/stores/indexedDB';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -65,19 +66,55 @@ const error = computed(() => authStore.error);
 const success = ref('');
 
 async function handleRegister() {
+  if (!navigator.onLine) {
+    // Guardar en IndexedDB
+    await addPendingRegistration({
+      username: username.value,
+      email: email.value,
+      password: password.value
+    });
+    success.value = 'Sin conexión. El registro se enviará automáticamente cuando vuelvas a estar en línea.';
+    // Limpiar campos
+    username.value = '';
+    email.value = '';
+    password.value = '';
+    return;
+  }
   try {
     await authStore.register(username.value, email.value, password.value);
-    
-    // Trigger notification prompt immediately (Register click is a User Gesture)
+    // Trigger notification prompt inmediatamente
     notificationsStore.subscribe().catch(err => {
       console.log('Register: Notification prompt declined or failed.', err);
     });
-
     success.value = '¡Cuenta creada! Redirigiendo...';
     setTimeout(() => router.push('/pokedex'), 1000);
   } catch {
     // error is shown via computed
   }
+}
+
+// Sincronizar registros pendientes cuando vuelva la conexión
+async function syncPendingRegistrations() {
+  const pendings = await getAllPendingRegistrations();
+  for (const reg of pendings) {
+    try {
+      await authStore.register(reg.username, reg.email, reg.password);
+      await removePendingRegistration(reg.email);
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: { message: `Registro pendiente de ${reg.email} enviado correctamente.`, type: 'success' }
+      }));
+    } catch (err) {
+      // Si falla, lo dejamos en la cola
+      window.dispatchEvent(new CustomEvent('app-toast', {
+        detail: { message: `Error al sincronizar registro pendiente de ${reg.email}.`, type: 'info' }
+      }));
+    }
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('online', syncPendingRegistrations);
+});
 }
 </script>
 
