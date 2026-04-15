@@ -115,7 +115,7 @@ async function syncPendingRegistrations() {
 onMounted(() => {
   window.addEventListener('online', syncPendingRegistrations);
 });
-}
+
 </script>
 
 <style scoped>
