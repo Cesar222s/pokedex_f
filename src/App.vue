@@ -32,6 +32,12 @@
   </div>
 
   <AppToast />
+  <div v-if="syncMessage" class="pwa-toast sync-toast animate-fade-in-up">
+    <div class="message">
+      <span class="icon">🔄</span>
+      Cambios pendientes enviados a la nube.
+    </div>
+  </div>
 </template>
 
 <script setup>
