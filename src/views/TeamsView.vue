@@ -236,20 +236,22 @@ async function addPokemonToDraft(poke) {
     const pokemonData = {
       pokemonId: data.id,
       name: data.name,
-      sprite: data.sprites.official_artwork || data.sprites.front_default,
+      // Fix: Official artwork path in PokeAPI is data.sprites.other['official-artwork'].front_default
+      sprite: data.sprites.other?.['official-artwork']?.front_default || data.sprites.front_default,
       types: data.types.map(t => t.name),
       stats: {
-        hp: data.stats.find(s => s.name === 'hp')?.value || 100,
-        attack: data.stats.find(s => s.name === 'attack')?.value || 100,
-        defense: data.stats.find(s => s.name === 'defense')?.value || 100,
-        specialAttack: data.stats.find(s => s.name === 'special-attack')?.value || 100,
-        specialDefense: data.stats.find(s => s.name === 'special-defense')?.value || 100,
-        speed: data.stats.find(s => s.name === 'speed')?.value || 100,
+        hp: data.stats.find(s => s.name === 'hp')?.base_stat || 100,
+        attack: data.stats.find(s => s.name === 'attack')?.base_stat || 100,
+        defense: data.stats.find(s => s.name === 'defense')?.base_stat || 100,
+        specialAttack: data.stats.find(s => s.name === 'special-attack')?.base_stat || 100,
+        specialDefense: data.stats.find(s => s.name === 'special-defense')?.base_stat || 100,
+        speed: data.stats.find(s => s.name === 'speed')?.base_stat || 100,
       },
       selectedMoves: []
     };
     
-    draftTeam.value.pokemon[activeSlot.value] = pokemonData;
+    // Use splice to ensure reactivity and that indices are handled correctly
+    draftTeam.value.pokemon.splice(activeSlot.value, 1, pokemonData);
     searchModalOpen.value = false;
   } catch (err) {
     console.error('Add pokemon to draft error:', err);
