@@ -97,7 +97,8 @@
                 <div class="editor-poke-title">
                   <h2 class="capitalize">{{ activeSlotPokemon.name }}</h2>
                   <div class="roster-types">
-                    <span v-for="t in activeSlotPokemon.types" :key="t" class="type-badge" :class="'type-' + t">{{ t }}</span>
+                <div class="roster-types">
+                    <span v-for="t in activeSlotPokemon.types" :key="t" class="type-badge" :class="'type-' + t">{{ translateType(t) }}</span>
                   </div>
                 </div>
                 <button class="btn btn-secondary btn-sm" @click="openPokemonSearch">Cambiar Pokémon</button>
@@ -129,13 +130,13 @@
                       }"
                       @click="toggleMoveInDraft(move)">
                       <div class="move-pick-main">
-                        <span class="type-badge" :class="'type-' + move.type">{{ move.type }}</span>
+                        <span class="type-badge" :class="'type-' + move.type">{{ translateType(move.type) }}</span>
                         <span class="move-pick-name">{{ move.name?.replace(/-/g, ' ') }}</span>
-                        <span class="move-pick-class" :class="move.damageClass">{{ move.damageClass }}</span>
+                        <span class="move-pick-class" :class="move.damageClass">{{ translateClass(move.damageClass) }}</span>
                       </div>
                       <div class="move-pick-stats">
-                        <span v-if="move.power" class="m-data"><b>POW</b> {{ move.power }}</span>
-                        <span v-if="move.accuracy" class="m-data"><b>ACC</b> {{ move.accuracy }}%</span>
+                        <span v-if="move.power" class="m-data"><b>POT</b> {{ move.power }}</span>
+                        <span v-if="move.accuracy" class="m-data"><b>PRE</b> {{ move.accuracy }}%</span>
                       </div>
                     </button>
                   </div>
@@ -181,6 +182,7 @@ import { useTeamsStore } from '@/stores/teams';
 import api from '@/services/api';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import PokemonSearchModal from '@/components/PokemonSearchModal.vue';
+import { translateType, translateClass } from '@/utils/translations';
 
 const teamsStore = useTeamsStore();
 const loading = computed(() => teamsStore.loading);

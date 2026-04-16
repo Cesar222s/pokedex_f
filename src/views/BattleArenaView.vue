@@ -103,11 +103,11 @@
               :class="['type-move', 'type-bg-' + move.type]"
               @click="submitMove(move.name)"
               :disabled="submitting">
-              <div class="move-btn-name">{{ move.name?.replace(/-/g,'  ') }}</div>
+              <div class="move-btn-name">{{ move.name?.replace(/-/g,' ') }}</div>
               <div class="move-btn-details">
-                <span class="type-badge" :class="'type-' + move.type">{{ move.type }}</span>
+                <span class="type-badge" :class="'type-' + move.type">{{ translateType(move.type) }}</span>
                 <span class="move-stat" v-if="move.power">POT {{ move.power }}</span>
-                <span class="move-stat" v-if="move.accuracy">{{ move.accuracy }}%</span>
+                <span class="move-stat" v-if="move.accuracy">PRE {{ move.accuracy }}%</span>
               </div>
             </button>
           </div>
@@ -163,6 +163,8 @@ import { useRoute } from 'vue-router';
 import { useBattleStore } from '@/stores/battle';
 import { useAuthStore } from '@/stores/auth';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
+import socketService from '@/services/socket';
+import { translateType } from '@/utils/translations';
 
 const route = useRoute();
 const battleStore = useBattleStore();
@@ -175,6 +177,7 @@ const perspective = computed(() => battleStore.perspective);
 const submitting = ref(false);
 const moveSubmitted = ref(false);
 const logRef = ref(null);
+const opponentMoving = ref(false);
 
 const isChallenger = computed(() => perspective.value === 'challenger');
 
@@ -221,13 +224,13 @@ const waitingForOpponent = computed(() => {
   const myMove = isChallenger.value
     ? battle.value.state.challengerMove
     : battle.value.state.opponentMove;
-  return !!myMove;
+  return !!myMove || opponentMoving.value;
 });
 
 const isWinner = computed(() => {
   const winner = battle.value?.winner;
   const user = authStore.user;
-  return winner?._id === user?._id || winner?.username === user?.username;
+  return winner?._id === user?._id || winner?.username === user?._id || winner?.username === user?.username;
 });
 
 function hpClass(pct) {
@@ -237,12 +240,13 @@ function hpClass(pct) {
 }
 
 function getEventClass(event) {
-  if (event.includes('super effective')) return 'ev-super';
-  if (event.includes("not very effective")) return 'ev-weak';
-  if (event.includes("doesn't affect")) return 'ev-immune';
-  if (event.includes('fainted')) return 'ev-faint';
-  if (event.includes('used')) return 'ev-move';
-  if (event.includes('wins') || event.includes('Victory') || event.includes('Challenger') || event.includes('Opponent')) return 'ev-result';
+  const ev = event.toLowerCase();
+  if (ev.includes('muy eficaz')) return 'ev-super';
+  if (ev.includes("no es muy eficaz")) return 'ev-weak';
+  if (ev.includes("no afecta")) return 'ev-immune';
+  if (ev.includes('debilitado')) return 'ev-faint';
+  if (ev.includes('usó')) return 'ev-move';
+  if (ev.includes('terminado') || ev.includes('victoria') || ev.includes('gana')) return 'ev-result';
   return '';
 }
 
@@ -250,7 +254,7 @@ async function submitMove(moveName) {
   submitting.value = true;
   try {
     await battleStore.submitMove(route.params.id, moveName);
-    moveSubmitted.value = false;
+    moveSubmitted.value = true;
     scrollLog();
   } catch (err) {
     console.error(err);
@@ -271,28 +275,38 @@ function scrollLog() {
   });
 }
 
-// Poll for updates every 5 seconds if waiting for opponent
-let pollInterval;
-function startPolling() {
-  pollInterval = setInterval(async () => {
-    if (battle.value?.status === 'active') {
-      await battleStore.fetchBattle(route.params.id);
-      scrollLog();
-    } else {
-      clearInterval(pollInterval);
+// Socket Integration
+function initSockets() {
+  const battleId = route.params.id;
+  socketService.connect(authStore.token);
+  socketService.joinBattle(battleId);
+
+  socketService.onOpponentMoved(({ userId }) => {
+    if (userId !== authStore.user?._id) {
+       opponentMoving.value = true;
     }
-  }, 5000);
+  });
+
+  socketService.onBattleUpdated(({ battle: updatedBattle }) => {
+    battleStore.currentBattle = updatedBattle;
+    opponentMoving.value = false;
+    moveSubmitted.value = false;
+    scrollLog();
+  });
 }
 
 watch(() => battle.value?.log?.length, scrollLog);
 
 onMounted(async () => {
   await battleStore.fetchBattle(route.params.id);
+  initSockets();
   scrollLog();
-  if (battle.value?.status === 'active') startPolling();
 });
 
-onUnmounted(() => clearInterval(pollInterval));
+onUnmounted(() => {
+  socketService.leaveBattle(route.params.id);
+  socketService.disconnect();
+});
 </script>
 
 <style scoped>
