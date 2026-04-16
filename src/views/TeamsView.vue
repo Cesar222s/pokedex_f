@@ -97,7 +97,6 @@
                 <div class="editor-poke-title">
                   <h2 class="capitalize">{{ activeSlotPokemon.name }}</h2>
                   <div class="roster-types">
-                <div class="roster-types">
                     <span v-for="t in activeSlotPokemon.types" :key="t" class="type-badge" :class="'type-' + t">{{ translateType(t) }}</span>
                   </div>
                 </div>
