@@ -120,13 +120,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useBattleStore } from '@/stores/battle';
 import { useTeamsStore } from '@/stores/teams';
 import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
+const route = useRoute();
 const battleStore = useBattleStore();
 const teamsStore = useTeamsStore();
 const authStore = useAuthStore();
@@ -175,10 +176,28 @@ async function refresh() {
   await battleStore.fetchPending();
 }
 
-onMounted(() => {
-  battleStore.fetchPending();
+// Check for deep link to accept a specific battle
+function checkDeepLink() {
+  const acceptId = route.query.accept;
+  if (acceptId) {
+    const battle = pendingIncoming.value.find(b => b._id === acceptId);
+    if (battle) {
+      openAccept(battle);
+      // Clear query param to avoid re-opening on refresh
+      router.replace({ query: {} });
+    }
+  }
+}
+
+watch(pendingIncoming, (newVal) => {
+  if (newVal.length > 0) checkDeepLink();
+}, { immediate: true });
+
+onMounted(async () => {
+  await battleStore.fetchPending();
   battleStore.fetchHistory();
   teamsStore.fetchTeams();
+  checkDeepLink();
 });
 </script>
 

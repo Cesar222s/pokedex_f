@@ -22,7 +22,7 @@ export const useNotificationStore = defineStore('notifications', {
   state: () => ({
     isSubscribed: false,
     loading: false,
-    permission: Notification.permission
+    permission: typeof Notification !== 'undefined' ? Notification.permission : 'default'
   }),
 
   actions: {
@@ -32,7 +32,7 @@ export const useNotificationStore = defineStore('notifications', {
         return;
       }
 
-      this.permission = Notification.permission;
+      this.permission = typeof Notification !== 'undefined' ? Notification.permission : 'default';
       if (this.permission === 'granted') {
         const registration = await navigator.serviceWorker.ready;
         const subscription = await registration.pushManager.getSubscription();
@@ -44,6 +44,9 @@ export const useNotificationStore = defineStore('notifications', {
       this.loading = true;
       console.log('Push: Iniciando proceso de suscripción...');
       try {
+        if (typeof Notification === 'undefined') {
+          throw new Error('Notificaciones no soportadas en este navegador');
+        }
         const permission = await Notification.requestPermission();
         this.permission = permission;
         console.log('Push: Permiso de notificación:', permission);

@@ -83,7 +83,7 @@ const handleSyncQueued = () => {
 // Automatic notification permission request (Triggered by user interaction to avoid browser block)
 const attemptSubscription = async () => {
   // Try to subscribe if not subscribed (even if granted, maybe backend session lost it)
-  if (!isAuthenticated.value || (Notification.permission === 'denied') || notificationsStore.isSubscribed) {
+  if (!isAuthenticated.value || (typeof Notification === 'undefined' || Notification.permission === 'denied') || notificationsStore.isSubscribed) {
     return;
   }
 
@@ -110,14 +110,14 @@ onMounted(() => {
   window.addEventListener('offline', updateOnlineStatus);
   window.addEventListener('pwa-sync-queued', handleSyncQueued);
   
-  if (isAuthenticated.value && Notification.permission === 'default') {
+  if (isAuthenticated.value && typeof Notification !== 'undefined' && Notification.permission === 'default') {
     window.addEventListener('click', attemptSubscription, { once: true });
     window.addEventListener('touchstart', attemptSubscription, { once: true });
   }
 });
 
 watch(isAuthenticated, (val) => {
-  if (val && Notification.permission === 'default') {
+  if (val && typeof Notification !== 'undefined' && Notification.permission === 'default') {
     window.addEventListener('click', attemptSubscription, { once: true });
     window.addEventListener('touchstart', attemptSubscription, { once: true });
   }
