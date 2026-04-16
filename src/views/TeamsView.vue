@@ -71,7 +71,7 @@
                 empty: !draftTeam.pokemon[idx-1],
                 active: activeSlot === idx-1 
               }"
-              @click="activeSlot = idx-1"
+              @click="handleSlotClick(idx-1)"
             >
               <div v-if="draftTeam.pokemon[idx-1]" class="slot-content">
                 <img :src="draftTeam.pokemon[idx-1].sprite" class="slot-sprite" />
@@ -229,6 +229,14 @@ function cancelBuilder() {
 // Pokemon Search logic for Draft
 const searchModalOpen = ref(false);
 function openPokemonSearch() { searchModalOpen.value = true; }
+
+function handleSlotClick(idx) {
+  activeSlot.value = idx;
+  // If slot is empty, help user by opening search automatically
+  if (!draftTeam.value.pokemon[idx]) {
+    openPokemonSearch();
+  }
+}
 
 async function addPokemonToDraft(poke) {
   try {
