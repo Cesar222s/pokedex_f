@@ -55,13 +55,20 @@
 
             <!-- Empty slots -->
             <div v-for="i in (6 - team.pokemon.length)" :key="'empty-' + i"
-              class="roster-slot empty" @click="$router.push('/pokedex')">
+              class="roster-slot empty" @click="openPokemonSearch(team)">
               <span class="empty-icon">+</span>
               <span class="empty-text">Añadir Pokémon</span>
             </div>
           </div>
         </div>
       </div>
+
+      <!-- Pokémon Search Modal -->
+      <PokemonSearchModal 
+        v-if="searchModalOpen" 
+        @close="searchModalOpen = false" 
+        @select="addPokemonToTeam" 
+      />
 
       <!-- Create Team Modal -->
       <div v-if="showCreate" class="modal-overlay" @click.self="showCreate = false">
@@ -108,10 +115,16 @@
             <div v-for="(move, i) in selectedMoves" :key="i" class="selected-slot"
               :class="{ empty: !move }">
               <template v-if="move">
-                <span class="type-badge" :class="'type-' + move.type">{{ move.type }}</span>
-                <span class="move-slot-name">{{ move.name?.replace(/-/g, ' ') }}</span>
-                <span class="move-slot-power">POT {{ move.power || '—' }}</span>
-                <button class="remove-move-btn" @click="removeMove(i)">✕</button>
+                <div class="move-slot-row">
+                  <span class="type-badge" :class="'type-' + move.type">{{ move.type }}</span>
+                  <span class="move-slot-name">{{ move.name?.replace(/-/g, ' ') }}</span>
+                  <button class="remove-move-btn" @click="removeMove(i)">✕</button>
+                </div>
+                <div class="move-slot-stats">
+                  <span v-if="move.power" class="m-stat">💥 {{ move.power }}</span>
+                  <span v-if="move.accuracy" class="m-stat">🎯 {{ move.accuracy }}%</span>
+                  <span v-if="move.pp" class="m-stat">🧪 {{ move.pp }} PP</span>
+                </div>
               </template>
               <span v-else class="empty-slot-text">Ranura vacía</span>
             </div>
@@ -122,13 +135,22 @@
             <div v-else class="moves-picker-list">
               <button v-for="move in availableMoves" :key="move.name"
                 class="move-pick-btn"
-                :class="{ selected: isMoveSelected(move), disabled: selectedMoves.filter(Boolean).length >= 4 && !isMoveSelected(move) }"
+                :class="{ 
+                  selected: isMoveSelected(move), 
+                  disabled: selectedMoves.filter(Boolean).length >= 4 && !isMoveSelected(move) 
+                }"
                 @click="toggleMove(move)"
                 :disabled="selectedMoves.filter(Boolean).length >= 4 && !isMoveSelected(move)">
-                <span class="type-badge" :class="'type-' + move.type">{{ move.type }}</span>
-                <span class="move-pick-name">{{ move.name?.replace(/-/g, ' ') }}</span>
-                <span class="move-pick-power" v-if="move.power">{{ move.power }}</span>
-                <span class="move-pick-class" :class="move.damageClass">{{ move.damageClass }}</span>
+                <div class="move-pick-main">
+                  <span class="type-badge" :class="'type-' + move.type">{{ move.type }}</span>
+                  <span class="move-pick-name">{{ move.name?.replace(/-/g, ' ') }}</span>
+                </div>
+                <div class="move-pick-stats">
+                  <span v-if="move.power" class="m-data"><b>POW</b> {{ move.power }}</span>
+                  <span v-if="move.accuracy" class="m-data"><b>ACC</b> {{ move.accuracy }}%</span>
+                  <span class="move-pick-class" :class="move.damageClass">{{ move.damageClass }}</span>
+                </div>
+                <div v-if="move.effect" class="move-pick-desc">{{ move.effect }}</div>
               </button>
             </div>
           </div>
@@ -162,6 +184,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useTeamsStore } from '@/stores/teams';
 import api from '@/services/api';
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
+import PokemonSearchModal from '@/components/PokemonSearchModal.vue';
 
 const teamsStore = useTeamsStore();
 const loading = computed(() => teamsStore.loading);
@@ -208,6 +231,42 @@ async function doDelete() {
 // Remove Pokémon
 async function removePokemon(teamId, pokemonId) {
   await teamsStore.removePokemonFromTeam(teamId, pokemonId);
+}
+
+// Inline Pokemon Search
+const searchModalOpen = ref(false);
+const searchingForTeam = ref(null);
+
+function openPokemonSearch(team) {
+  searchingForTeam.value = team;
+  searchModalOpen.value = true;
+}
+
+async function addPokemonToTeam(poke) {
+  if (!searchingForTeam.value) return;
+  try {
+    // We need complete data for stats (matching how it is stored)
+    const { data } = await api.get(`/pokemon/${poke.id}`);
+    const pokemonData = {
+      pokemonId: data.id,
+      name: data.name,
+      sprite: data.sprites.official_artwork || data.sprites.front_default,
+      types: data.types.map(t => t.name),
+      stats: {
+        hp: data.stats.find(s => s.name === 'hp')?.value || 100,
+        attack: data.stats.find(s => s.name === 'attack')?.value || 100,
+        defense: data.stats.find(s => s.name === 'defense')?.value || 100,
+        specialAttack: data.stats.find(s => s.name === 'special-attack')?.value || 100,
+        specialDefense: data.stats.find(s => s.name === 'special-defense')?.value || 100,
+        speed: data.stats.find(s => s.name === 'speed')?.value || 100,
+      }
+    };
+    
+    await teamsStore.addPokemonToTeam(searchingForTeam.value._id, pokemonData);
+    searchModalOpen.value = false;
+  } catch (err) {
+    console.error('Add pokemon error:', err);
+  }
 }
 
 // Move Editor
@@ -362,80 +421,95 @@ onMounted(() => teamsStore.fetchTeams());
 .selected-moves {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
 }
 
 .selected-slot {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem 0.75rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  font-size: 0.8rem;
-  min-height: 42px;
+  min-height: 80px;
 }
 
 .selected-slot.empty {
   opacity: 0.4;
   justify-content: center;
+  align-items: center;
+  border-style: dashed;
 }
 
-.empty-slot-text { font-size: 0.75rem; color: var(--text-muted); }
-.move-slot-name { flex: 1; text-transform: capitalize; font-weight: 500; }
-.move-slot-power { font-size: 0.7rem; color: var(--text-muted); }
+.move-slot-row { display: flex; align-items: center; gap: 0.5rem; width: 100%; }
+.move-slot-name { flex: 1; text-transform: capitalize; font-weight: 600; font-size: 0.9rem; }
+
+.move-slot-stats {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
 
 .remove-move-btn {
-  background: none;
+  background: var(--bg-tertiary);
   border: none;
   color: var(--danger);
   cursor: pointer;
-  padding: 0;
-  font-size: 0.75rem;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.6rem;
 }
 
 .moves-picker {
-  max-height: 280px;
+  max-height: 350px;
   overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 0.5rem;
+  background: var(--bg-tertiary);
 }
 
-.moves-picker-list { display: flex; flex-direction: column; gap: 0.35rem; }
+.moves-picker-list { display: flex; flex-direction: column; }
 
 .move-pick-btn {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background: var(--bg-card);
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
   color: var(--text-primary);
   cursor: pointer;
   text-align: left;
-  font-size: 0.8rem;
   transition: all 0.15s;
 }
 
-.move-pick-btn:hover { background: var(--bg-card-hover); border-color: var(--border); }
-.move-pick-btn.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
-.move-pick-btn.disabled { opacity: 0.35; cursor: not-allowed; }
+.move-pick-btn:hover { background: var(--bg-card-hover); }
+.move-pick-btn.selected { background: hsla(230, 100%, 65%, 0.1); border-left: 3px solid var(--accent); }
+.move-pick-btn.disabled { opacity: 0.4; cursor: not-allowed; }
 
-.move-pick-name { flex: 1; text-transform: capitalize; }
-.move-pick-power { font-size: 0.7rem; color: var(--text-muted); }
-.move-pick-class { font-size: 0.65rem; padding: 0.1rem 0.35rem; border-radius: 3px; }
-.move-pick-class.physical { background: hsla(0, 75%, 55%, 0.2); color: hsl(0, 75%, 70%); }
-.move-pick-class.special { background: hsla(210, 100%, 60%, 0.2); color: hsl(210, 100%, 70%); }
-.move-pick-class.status { background: hsla(230, 10%, 60%, 0.2); color: hsl(230, 10%, 70%); }
+.move-pick-main { display: flex; align-items: center; gap: 0.5rem; }
+.move-pick-name { flex: 1; text-transform: capitalize; font-weight: 600; font-size: 0.95rem; }
+
+.move-pick-stats { display: flex; align-items: center; gap: 1rem; font-size: 0.75rem; }
+.m-data b { color: var(--text-muted); margin-right: 0.2rem; }
+
+.move-pick-class { font-size: 0.65rem; padding: 0.1rem 0.4rem; border-radius: 4px; text-transform: uppercase; font-weight: 700; }
+.move-pick-class.physical { background: #c92112; color: white; }
+.move-pick-class.special { background: #4f5870; color: white; }
+.move-pick-class.status { background: #8c888c; color: white; }
+
+.move-pick-desc { font-size: 0.75rem; color: var(--text-muted); font-style: italic; line-height: 1.2; margin-top: 0.2rem; }
 
 .capitalize { text-transform: capitalize; }
 
 @media (max-width: 768px) {
-  .team-roster { grid-template-columns: repeat(2, 1fr); }
+  .team-roster { grid-template-columns: 1fr; }
   .selected-moves { grid-template-columns: 1fr; }
+  .moves-picker { max-height: 300px; }
 }
 </style>
