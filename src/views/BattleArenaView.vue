@@ -219,18 +219,23 @@ const hasAliveTeammates = computed(() => {
   return yourHP.value.some((hp, i) => hp > 0 && i !== yourActiveIndex.value);
 });
 
+// Selection indicators
 const waitingForOpponent = computed(() => {
   if (!battle.value?.state) return false;
+  
+  // If we already submitted a move, we are waiting for the opponent
   const myMove = isChallenger.value
     ? battle.value.state.challengerMove
     : battle.value.state.opponentMove;
+    
   return !!myMove || opponentMoving.value;
 });
 
 const isWinner = computed(() => {
   const winner = battle.value?.winner;
-  const user = authStore.user;
-  return winner?._id === user?._id || winner?.username === user?._id || winner?.username === user?.username;
+  const userId = authStore.user?._id;
+  if (!winner || !userId) return false;
+  return (winner._id || winner) === userId;
 });
 
 function hpClass(pct) {
@@ -251,13 +256,16 @@ function getEventClass(event) {
 }
 
 async function submitMove(moveName) {
+  if (submitting.value) return;
   submitting.value = true;
+  moveSubmitted.value = true; // Visual feedback: hide buttons immediately
+  
   try {
     await battleStore.submitMove(route.params.id, moveName);
-    moveSubmitted.value = true;
     scrollLog();
   } catch (err) {
     console.error(err);
+    moveSubmitted.value = false; // Re-show if failed
   } finally {
     submitting.value = false;
   }
@@ -288,9 +296,13 @@ function initSockets() {
   });
 
   socketService.onBattleUpdated(({ battle: updatedBattle }) => {
+    console.log('Socket: Battle updated', updatedBattle);
     battleStore.currentBattle = updatedBattle;
+    
+    // Key: Reset states so buttons reappear and indicators hide
     opponentMoving.value = false;
     moveSubmitted.value = false;
+    
     scrollLog();
   });
 }
