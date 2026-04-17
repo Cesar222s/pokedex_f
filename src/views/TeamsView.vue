@@ -240,7 +240,23 @@ function handleSlotClick(idx) {
 
 async function addPokemonToDraft(poke) {
   try {
-    const { data } = await api.get(`/pokemon/${poke.id}`);
+    // Fetch both Pokémon details and available moves concurrently
+    const movesPromise = api.get(`/pokemon/${poke.id}/moves`).catch(() => ({ data: { moves: [] } }));
+    const [pokemonRes, movesRes] = await Promise.all([
+      api.get(`/pokemon/${poke.id}`),
+      movesPromise
+    ]);
+
+    const data = pokemonRes.data;
+    const movesList = movesRes.data.moves || [];
+    
+    // Try to pick 4 decent moves automatically: prefer those with power (damage)
+    let defaultMoves = movesList.filter(m => m.power > 0).slice(0, 4);
+    if (defaultMoves.length < 4) {
+      const remaining = movesList.filter(m => !defaultMoves.some(d => d.name === m.name));
+      defaultMoves = [...defaultMoves, ...remaining].slice(0, 4);
+    }
+
     const pokemonData = {
       pokemonId: data.id,
       name: data.name,
@@ -255,7 +271,7 @@ async function addPokemonToDraft(poke) {
         specialDefense: data.stats.find(s => s.name === 'special-defense')?.base_stat || 100,
         speed: data.stats.find(s => s.name === 'speed')?.base_stat || 100,
       },
-      selectedMoves: []
+      selectedMoves: defaultMoves
     };
     
     // Use splice to ensure reactivity and that indices are handled correctly
