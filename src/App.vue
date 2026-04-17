@@ -38,16 +38,27 @@
       Cambios pendientes enviados a la nube.
     </div>
   </div>
+
+  <!-- Battle accepted toast -->
+  <div v-if="battleAcceptedToast" class="pwa-toast battle-toast animate-fade-in-up">
+    <div class="message">
+      <span class="icon">⚔️</span>
+      ¡La batalla ha comenzado! Entrando a la arena...
+    </div>
+  </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import NavBar from '@/components/NavBar.vue';
 import AppToast from '@/components/Toast.vue';
 import { useRegisterSW } from 'virtual:pwa-register/vue';
 import { useNotificationStore } from '@/stores/notifications';
+import socketService from '@/services/socket';
 
+const router = useRouter();
 const authStore = useAuthStore();
 const notificationsStore = useNotificationStore();
 const isAuthenticated = computed(() => authStore.isAuthenticated);
@@ -55,6 +66,7 @@ const isAuthenticated = computed(() => authStore.isAuthenticated);
 const offlineMessage = ref(null);
 const syncMessage = ref(false);
 const configuringPrompt = ref(false);
+const battleAcceptedToast = ref(false);
 
 const {
   needRefresh,
@@ -80,9 +92,33 @@ const handleSyncQueued = () => {
   setTimeout(() => { syncMessage.value = false; }, 5000);
 };
 
+// ── Global Socket Connection ──
+function initGlobalSocket() {
+  if (!authStore.token) return;
+
+  socketService.connect(authStore.token);
+
+  // Listen for battle acceptance — auto-navigate to arena
+  socketService.onBattleAccepted(({ battleId }) => {
+    console.log('App: Battle accepted, navigating to arena:', battleId);
+    battleAcceptedToast.value = true;
+    setTimeout(() => { battleAcceptedToast.value = false; }, 3000);
+    router.push(`/battles/${battleId}`);
+  });
+
+  // Listen for incoming challenges — we can use a custom event to refresh BattlesView
+  socketService.onChallengeReceived(() => {
+    console.log('App: New challenge received');
+    window.dispatchEvent(new CustomEvent('battle-challenge-received'));
+  });
+}
+
+function teardownGlobalSocket() {
+  socketService.disconnect();
+}
+
 // Automatic notification permission request (Triggered by user interaction to avoid browser block)
 const attemptSubscription = async () => {
-  // Try to subscribe if not subscribed (even if granted, maybe backend session lost it)
   if (!isAuthenticated.value || (typeof Notification === 'undefined' || Notification.permission === 'denied') || notificationsStore.isSubscribed) {
     return;
   }
@@ -97,9 +133,7 @@ const attemptSubscription = async () => {
   } catch (err) {
     console.log('App: Suscripción automática fallida o cancelada.', err);
   } finally {
-    // Hide toast after a delay
     setTimeout(() => { configuringPrompt.value = false; }, 3000);
-    // Cleanup listeners
     window.removeEventListener('click', attemptSubscription);
     window.removeEventListener('touchstart', attemptSubscription);
   }
@@ -114,12 +148,23 @@ onMounted(() => {
     window.addEventListener('click', attemptSubscription, { once: true });
     window.addEventListener('touchstart', attemptSubscription, { once: true });
   }
+
+  // Connect socket globally if already authenticated
+  if (isAuthenticated.value) {
+    initGlobalSocket();
+  }
 });
 
+// Watch for auth changes
 watch(isAuthenticated, (val) => {
-  if (val && typeof Notification !== 'undefined' && Notification.permission === 'default') {
-    window.addEventListener('click', attemptSubscription, { once: true });
-    window.addEventListener('touchstart', attemptSubscription, { once: true });
+  if (val) {
+    initGlobalSocket();
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      window.addEventListener('click', attemptSubscription, { once: true });
+      window.addEventListener('touchstart', attemptSubscription, { once: true });
+    }
+  } else {
+    teardownGlobalSocket();
   }
 });
 
@@ -129,6 +174,7 @@ onUnmounted(() => {
   window.removeEventListener('pwa-sync-queued', handleSyncQueued);
   window.removeEventListener('click', attemptSubscription);
   window.removeEventListener('touchstart', attemptSubscription);
+  teardownGlobalSocket();
 });
 </script>
 

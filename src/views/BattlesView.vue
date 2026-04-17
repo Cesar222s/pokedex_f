@@ -120,7 +120,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useBattleStore } from '@/stores/battle';
 import { useTeamsStore } from '@/stores/teams';
@@ -131,6 +131,12 @@ const route = useRoute();
 const battleStore = useBattleStore();
 const teamsStore = useTeamsStore();
 const authStore = useAuthStore();
+
+// Listen for real-time challenge notifications
+const handleChallengeReceived = () => {
+  console.log('BattlesView: New challenge received, refreshing...');
+  battleStore.fetchPending();
+};
 
 const pendingIncoming = computed(() => battleStore.pendingIncoming);
 const pendingOutgoing = computed(() => battleStore.pendingOutgoing);
@@ -198,6 +204,11 @@ onMounted(async () => {
   battleStore.fetchHistory();
   teamsStore.fetchTeams();
   checkDeepLink();
+  window.addEventListener('battle-challenge-received', handleChallengeReceived);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('battle-challenge-received', handleChallengeReceived);
 });
 </script>
 

@@ -17,7 +17,9 @@
         <div class="arena-header">
           <span class="turn-badge">Turno {{ battle.state?.currentTurn }}</span>
           <h1 class="arena-title">⚔️ Arena de Combate</h1>
-          <span class="perspective-badge">{{ perspective === 'challenger' ? '🗡 Retaste a' : '🛡 Fuiste retado por' }}</span>
+          <span class="turn-indicator" :class="isMyTurn ? 'my-turn' : 'opponent-turn'">
+            {{ isMyTurn ? '🗡️ ¡Tu turno!' : '🛡️ Turno del oponente' }}
+          </span>
         </div>
 
         <!-- Field -->
@@ -38,7 +40,7 @@
             </div>
             <div class="sprite-container opponent">
               <img v-if="opponentActive?.sprite" :src="opponentActive.sprite"
-                :alt="opponentActive.name" class="battle-sprite" :class="{ fainted: currentOpponentHP <= 0 }" />
+                :alt="opponentActive.name" class="battle-sprite" :class="{ fainted: currentOpponentHP <= 0, shaking: opponentHit }" />
             </div>
             <div class="opponent-team-row">
               <div v-for="(p, i) in opponentTeam?.pokemon" :key="i" class="team-pip"
@@ -56,7 +58,7 @@
           <div class="combatant your-side">
             <div class="sprite-container yours">
               <img v-if="yourActive?.sprite" :src="yourActive.sprite"
-                :alt="yourActive.name" class="battle-sprite yours-sprite" :class="{ fainted: currentYourHP <= 0 }" />
+                :alt="yourActive.name" class="battle-sprite yours-sprite" :class="{ fainted: currentYourHP <= 0, shaking: yourHit }" />
             </div>
             <div class="your-team-row">
               <div v-for="(p, i) in yourTeam?.pokemon" :key="i" class="team-pip"
@@ -90,14 +92,13 @@
           </div>
         </div>
 
-        <!-- Selección de Movimiento -->
-        <div class="move-panel glass-card" v-if="currentYourHP > 0 && !moveSubmitted">
+        <!-- Selección de Movimiento — solo si es tu turno -->
+        <div class="move-panel glass-card" v-if="isMyTurn && currentYourHP > 0">
           <div class="move-panel-header">
-            <span>Elige movimiento para <strong class="capitalize">{{ yourActive?.name }}</strong></span>
-            <span class="waiting-text" v-if="waitingForOpponent">Esperando al oponente...</span>
+            <span>🗡️ Elige movimiento para <strong class="capitalize">{{ yourActive?.name }}</strong></span>
           </div>
 
-          <div class="moves-grid" v-if="!waitingForOpponent">
+          <div class="moves-grid">
             <button v-for="move in yourActive?.selectedMoves" :key="move.name"
               class="move-btn"
               :class="['type-move', 'type-bg-' + move.type]"
@@ -111,9 +112,13 @@
               </div>
             </button>
           </div>
+        </div>
 
-          <div v-else class="waiting-overlay">
-            <LoadingSpinner message="El oponente está eligiendo..." />
+        <!-- Esperando al oponente (no es tu turno) -->
+        <div class="waiting-turn glass-card" v-if="!isMyTurn && currentYourHP > 0 && battle.status === 'active'">
+          <div class="waiting-turn-content">
+            <div class="waiting-spinner"></div>
+            <span>Esperando que <strong>{{ opponentUser?.username }}</strong> haga su movimiento...</span>
           </div>
         </div>
 
@@ -175,9 +180,9 @@ const battle = computed(() => battleStore.currentBattle);
 const perspective = computed(() => battleStore.perspective);
 
 const submitting = ref(false);
-const moveSubmitted = ref(false);
 const logRef = ref(null);
-const opponentMoving = ref(false);
+const yourHit = ref(false);
+const opponentHit = ref(false);
 
 const isChallenger = computed(() => perspective.value === 'challenger');
 
@@ -219,16 +224,11 @@ const hasAliveTeammates = computed(() => {
   return yourHP.value.some((hp, i) => hp > 0 && i !== yourActiveIndex.value);
 });
 
-// Selection indicators
-const waitingForOpponent = computed(() => {
-  if (!battle.value?.state) return false;
-  
-  // If we already submitted a move, we are waiting for the opponent
-  const myMove = isChallenger.value
-    ? battle.value.state.challengerMove
-    : battle.value.state.opponentMove;
-    
-  return !!myMove || opponentMoving.value;
+// Turn-by-turn: is it my turn?
+const isMyTurn = computed(() => {
+  if (!battle.value?.state?.currentAttacker) return false;
+  const myRole = isChallenger.value ? 'challenger' : 'opponent';
+  return battle.value.state.currentAttacker === myRole;
 });
 
 const isWinner = computed(() => {
@@ -258,14 +258,12 @@ function getEventClass(event) {
 async function submitMove(moveName) {
   if (submitting.value) return;
   submitting.value = true;
-  moveSubmitted.value = true; // Visual feedback: hide buttons immediately
   
   try {
     await battleStore.submitMove(route.params.id, moveName);
     scrollLog();
   } catch (err) {
     console.error(err);
-    moveSubmitted.value = false; // Re-show if failed
   } finally {
     submitting.value = false;
   }
@@ -283,26 +281,38 @@ function scrollLog() {
   });
 }
 
+// Trigger hit animation
+function triggerHitAnimation(wasMyTurn) {
+  if (wasMyTurn) {
+    // I attacked, opponent got hit
+    opponentHit.value = true;
+    setTimeout(() => { opponentHit.value = false; }, 500);
+  } else {
+    // Opponent attacked, I got hit
+    yourHit.value = true;
+    setTimeout(() => { yourHit.value = false; }, 500);
+  }
+}
+
 // Socket Integration
 function initSockets() {
   const battleId = route.params.id;
-  socketService.connect(authStore.token);
+  // Socket is already connected globally from App.vue, just join the battle room
   socketService.joinBattle(battleId);
 
-  socketService.onOpponentMoved(({ userId }) => {
-    if (userId !== authStore.user?._id) {
-       opponentMoving.value = true;
-    }
-  });
-
   socketService.onBattleUpdated(({ battle: updatedBattle }) => {
-    console.log('Socket: Battle updated', updatedBattle);
+    console.log('Socket: Battle updated in arena');
+    
+    // Determine who just attacked based on whose turn it NOW is
+    // If it's now MY turn, the opponent just attacked (so I got hit)
+    // If it's now OPPONENT's turn, I just attacked (opponent got hit)
+    const myRole = isChallenger.value ? 'challenger' : 'opponent';
+    if (updatedBattle.state?.currentAttacker) {
+      const wasMyTurn = updatedBattle.state.currentAttacker !== myRole;
+      triggerHitAnimation(!wasMyTurn);
+    }
+    
     battleStore.currentBattle = updatedBattle;
-    
-    // Key: Reset states so buttons reappear and indicators hide
-    opponentMoving.value = false;
-    moveSubmitted.value = false;
-    
     scrollLog();
   });
 }
@@ -317,7 +327,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   socketService.leaveBattle(route.params.id);
-  socketService.disconnect();
+  socketService.offBattleUpdated();
 });
 </script>
 
@@ -331,13 +341,38 @@ onUnmounted(() => {
 }
 
 .arena-title { font-size: 1.5rem; }
-.turn-badge, .perspective-badge {
+.turn-badge {
   font-size: 0.8rem;
   padding: 0.3rem 0.8rem;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
   color: var(--text-secondary);
+}
+
+.turn-indicator {
+  font-size: 0.85rem;
+  padding: 0.4rem 1rem;
+  border-radius: var(--radius-full);
+  font-weight: 700;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.turn-indicator.my-turn {
+  background: linear-gradient(135deg, hsla(145, 65%, 50%, 0.2), hsla(145, 65%, 50%, 0.1));
+  color: hsl(145, 65%, 60%);
+  border: 1px solid hsla(145, 65%, 50%, 0.4);
+}
+
+.turn-indicator.opponent-turn {
+  background: linear-gradient(135deg, hsla(38, 95%, 55%, 0.2), hsla(38, 95%, 55%, 0.1));
+  color: hsl(38, 95%, 65%);
+  border: 1px solid hsla(38, 95%, 55%, 0.4);
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
 /* Field */
@@ -375,6 +410,15 @@ onUnmounted(() => {
 .opponent .battle-sprite { filter: brightness(0.85); }
 .yours-sprite { animation: float 3s ease-in-out infinite; filter: drop-shadow(0 8px 20px rgba(0,0,0,0.4)); }
 .battle-sprite.fainted { opacity: 0.3; transform: rotate(90deg) !important; }
+.battle-sprite.shaking { animation: shake 0.5s ease-in-out !important; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+}
 
 .team-pip {
   width: 12px; height: 12px; border-radius: 50%;
@@ -420,7 +464,6 @@ onUnmounted(() => {
 /* Move Panel */
 .move-panel { padding: 1.25rem; margin-bottom: 1.5rem; }
 .move-panel-header { font-size: 0.9rem; margin-bottom: 1rem; font-weight: 500; display: flex; justify-content: space-between; }
-.waiting-text { color: var(--accent); font-size: 0.8rem; }
 
 .moves-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
 
@@ -442,6 +485,34 @@ onUnmounted(() => {
 .move-btn-name { font-weight: 600; font-size: 0.9rem; text-transform: capitalize; margin-bottom: 0.5rem; }
 .move-btn-details { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
 .move-stat { font-size: 0.7rem; color: var(--text-muted); }
+
+/* Waiting for opponent turn */
+.waiting-turn {
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.waiting-turn-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-content: center;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+.waiting-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
 /* Switch Panel */
 .switch-panel { padding: 1.5rem; margin-bottom: 1.5rem; }
