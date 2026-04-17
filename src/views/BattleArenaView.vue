@@ -333,7 +333,7 @@ function startPolling() {
       return;
     }
     try {
-      await battleStore.fetchBattle(route.params.id);
+      await battleStore.fetchBattle(route.params.id, true);
       scrollLog();
     } catch (err) {
       console.error('Poll error:', err);

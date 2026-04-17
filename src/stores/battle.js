@@ -53,8 +53,8 @@ export const useBattleStore = defineStore('battle', {
       }
     },
 
-    async fetchBattle(battleId) {
-      this.loading = true;
+    async fetchBattle(battleId, silent = false) {
+      if (!silent) this.loading = true;
       try {
         const { data } = await api.get(`/battles/${battleId}`);
         this.currentBattle = data.battle;
@@ -62,7 +62,7 @@ export const useBattleStore = defineStore('battle', {
       } catch (err) {
         this.error = err.response?.data?.error || 'Failed to fetch battle';
       } finally {
-        this.loading = false;
+        if (!silent) this.loading = false;
       }
     },
 
