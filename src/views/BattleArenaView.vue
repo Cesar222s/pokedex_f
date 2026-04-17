@@ -294,18 +294,25 @@ function triggerHitAnimation(wasMyTurn) {
   }
 }
 
-// Socket Integration
+// Socket Integration + Polling Fallback
+let pollInterval = null;
+
 function initSockets() {
   const battleId = route.params.id;
-  // Socket is already connected globally from App.vue, just join the battle room
+
+  // Join battle room (handles case where socket isn't connected yet)
   socketService.joinBattle(battleId);
+
+  // If socket connects/reconnects later, re-join the room
+  socketService.onConnect(() => {
+    console.log('Socket: Connected/reconnected, joining battle room');
+    socketService.joinBattle(battleId);
+  });
 
   socketService.onBattleUpdated(({ battle: updatedBattle }) => {
     console.log('Socket: Battle updated in arena');
     
-    // Determine who just attacked based on whose turn it NOW is
-    // If it's now MY turn, the opponent just attacked (so I got hit)
-    // If it's now OPPONENT's turn, I just attacked (opponent got hit)
+    // Determine who just attacked for hit animation
     const myRole = isChallenger.value ? 'challenger' : 'opponent';
     if (updatedBattle.state?.currentAttacker) {
       const wasMyTurn = updatedBattle.state.currentAttacker !== myRole;
@@ -317,15 +324,60 @@ function initSockets() {
   });
 }
 
+// Polling fallback — checks for updates every 3 seconds when waiting
+function startPolling() {
+  stopPolling();
+  pollInterval = setInterval(async () => {
+    if (!battle.value || battle.value.status !== 'active') {
+      stopPolling();
+      return;
+    }
+    try {
+      await battleStore.fetchBattle(route.params.id);
+      scrollLog();
+    } catch (err) {
+      console.error('Poll error:', err);
+    }
+  }, 3000);
+}
+
+function stopPolling() {
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
+}
+
+// Start/stop polling based on whose turn it is
+watch(isMyTurn, (myTurn) => {
+  if (!myTurn && battle.value?.status === 'active') {
+    // Not my turn — poll for updates in case sockets fail
+    startPolling();
+  } else {
+    stopPolling();
+  }
+});
+
+watch(() => battle.value?.status, (status) => {
+  if (status === 'completed') {
+    stopPolling();
+  }
+});
+
 watch(() => battle.value?.log?.length, scrollLog);
 
 onMounted(async () => {
   await battleStore.fetchBattle(route.params.id);
   initSockets();
   scrollLog();
+  // Start polling if it's not my turn initially
+  if (!isMyTurn.value && battle.value?.status === 'active') {
+    startPolling();
+  }
 });
 
 onUnmounted(() => {
+  stopPolling();
   socketService.leaveBattle(route.params.id);
   socketService.offBattleUpdated();
 });

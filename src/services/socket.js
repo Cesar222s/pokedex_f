@@ -1,13 +1,15 @@
 import { io } from 'socket.io-client';
 
-// Use production URL in Railway, or localhost in dev
-const SOCKET_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:3001';
+// Derive socket URL from the same env var the API uses
+// VITE_API_URL = "https://domain.railway.app/api" → socket needs "https://domain.railway.app"
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const SOCKET_URL = API_URL.replace('/api', '');
 
 class SocketService {
   constructor() {
     this.socket = null;
     this._battleUpdatedCb = null;
-    this._opponentMovedCb = null;
+    this._onConnectCb = null;
   }
 
   /**
@@ -16,17 +18,25 @@ class SocketService {
   connect(token) {
     if (this.socket?.connected) return;
 
+    // Disconnect any stale socket first
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
+    }
+
     console.log('Socket: Connecting to', SOCKET_URL);
     this.socket = io(SOCKET_URL, {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionAttempts: 10
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: Infinity
     });
 
     this.socket.on('connect', () => {
       console.log('✅ Socket connected:', this.socket.id);
+      if (this._onConnectCb) this._onConnectCb();
     });
 
     this.socket.on('connect_error', (err) => {
@@ -36,20 +46,43 @@ class SocketService {
     this.socket.on('disconnect', (reason) => {
       console.log('⚠️ Socket disconnected:', reason);
     });
+
+    this.socket.on('reconnect', (attempt) => {
+      console.log('🔄 Socket reconnected after', attempt, 'attempts');
+      // Re-join battle room if we were in one
+      if (this._currentBattleId) {
+        this.joinBattle(this._currentBattleId);
+      }
+    });
+  }
+
+  /**
+   * Register a callback for when socket connects/reconnects
+   */
+  onConnect(callback) {
+    this._onConnectCb = callback;
+    // If already connected, fire immediately
+    if (this.socket?.connected) {
+      callback();
+    }
   }
 
   /**
    * Join a battle room (for battle-specific events)
    */
   joinBattle(battleId) {
-    if (this.socket) {
+    this._currentBattleId = battleId;
+    if (this.socket?.connected) {
       const roomId = battleId.toString();
       console.log('Socket: Joining battle room:', roomId);
       this.socket.emit('join-battle', roomId);
+    } else {
+      console.log('Socket: Not connected yet, will join battle room on connect');
     }
   }
 
   leaveBattle(battleId) {
+    this._currentBattleId = null;
     if (this.socket) {
       const roomId = battleId.toString();
       this.socket.emit('leave-battle', roomId);
@@ -63,7 +96,7 @@ class SocketService {
    */
   onBattleAccepted(callback) {
     if (this.socket) {
-      this.socket.off('battle-accepted'); // avoid duplicates
+      this.socket.off('battle-accepted');
       this.socket.on('battle-accepted', (data) => {
         console.log('📢 battle-accepted:', data.battleId);
         callback(data);
@@ -107,32 +140,20 @@ class SocketService {
     }
   }
 
-  onOpponentMoved(callback) {
-    if (this.socket) {
-      if (this._opponentMovedCb) {
-        this.socket.off('opponent-moved', this._opponentMovedCb);
-      }
-      this._opponentMovedCb = callback;
-      this.socket.on('opponent-moved', this._opponentMovedCb);
-    }
-  }
-
-  offOpponentMoved() {
-    if (this.socket && this._opponentMovedCb) {
-      this.socket.off('opponent-moved', this._opponentMovedCb);
-      this._opponentMovedCb = null;
-    }
+  get isConnected() {
+    return this.socket?.connected ?? false;
   }
 
   /**
    * Fully disconnect (on logout)
    */
   disconnect() {
+    this._currentBattleId = null;
+    this._onConnectCb = null;
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
       this._battleUpdatedCb = null;
-      this._opponentMovedCb = null;
     }
   }
 }
