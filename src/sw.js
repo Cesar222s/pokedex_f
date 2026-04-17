@@ -122,11 +122,9 @@ self.addEventListener('push', (event) => {
   const data = event.data.json();
   const options = {
     body: data.notification.body,
-    icon: '/pwa-192x192.svg',
-    badge: '/pwa-192x192.svg',
-    vibrate: [100, 50, 100],
+    vibrate: data.notification.vibrate || [100, 50, 100],
     data: data.notification.data || {},
-    actions: [{ action: 'open', title: 'Ver ahora' }]
+    actions: data.notification.actions || [{ action: 'open', title: 'Ver ahora' }]
   };
   event.waitUntil(self.registration.showNotification(data.notification.title, options));
 });

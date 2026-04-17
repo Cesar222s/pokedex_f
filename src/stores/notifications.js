@@ -35,8 +35,24 @@ export const useNotificationStore = defineStore('notifications', {
       this.permission = typeof Notification !== 'undefined' ? Notification.permission : 'default';
       if (this.permission === 'granted') {
         const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-        this.isSubscribed = !!subscription;
+        let subscription = await registration.pushManager.getSubscription();
+        
+        if (!subscription) {
+          try {
+            subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+            });
+          } catch (e) {
+            console.error('Push: Auto-subscribe falló:', e);
+          }
+        }
+
+        if (subscription) {
+          // Sincronización silenciosa con el backend (por si es una PWA recién instalada o nueva sesión)
+          await api.post('/notifications/subscribe', subscription).catch(() => {});
+          this.isSubscribed = true;
+        }
       }
     },
 

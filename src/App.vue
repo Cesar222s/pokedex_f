@@ -163,9 +163,13 @@ onMounted(() => {
   window.addEventListener('offline', updateOnlineStatus);
   window.addEventListener('pwa-sync-queued', handleSyncQueued);
   
-  if (isAuthenticated.value && typeof Notification !== 'undefined' && Notification.permission === 'default') {
-    window.addEventListener('click', attemptSubscription, { once: true });
-    window.addEventListener('touchstart', attemptSubscription, { once: true });
+  if (isAuthenticated.value && typeof Notification !== 'undefined') {
+    if (Notification.permission === 'default') {
+      window.addEventListener('click', attemptSubscription, { once: true });
+      window.addEventListener('touchstart', attemptSubscription, { once: true });
+    } else if (Notification.permission === 'granted') {
+      notificationsStore.init();
+    }
   }
 
   // Connect socket globally if already authenticated
@@ -178,9 +182,13 @@ onMounted(() => {
 watch(isAuthenticated, (val) => {
   if (val) {
     initGlobalSocket();
-    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      window.addEventListener('click', attemptSubscription, { once: true });
-      window.addEventListener('touchstart', attemptSubscription, { once: true });
+    if (typeof Notification !== 'undefined') {
+      if (Notification.permission === 'default') {
+        window.addEventListener('click', attemptSubscription, { once: true });
+        window.addEventListener('touchstart', attemptSubscription, { once: true });
+      } else if (Notification.permission === 'granted') {
+        notificationsStore.init();
+      }
     }
   } else {
     teardownGlobalSocket();
