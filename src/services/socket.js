@@ -117,6 +117,45 @@ class SocketService {
     }
   }
 
+  /**
+   * Called when someone accepts your friend request
+   */
+  onFriendRequestAccepted(callback) {
+    if (this.socket) {
+      this.socket.off('friend-request-accepted');
+      this.socket.on('friend-request-accepted', (data) => {
+        console.log('📢 friend-request-accepted:', data);
+        callback(data);
+      });
+    }
+  }
+
+  /**
+   * Called when you receive a new friend request
+   */
+  onFriendRequestReceived(callback) {
+    if (this.socket) {
+      this.socket.off('friend-request-received');
+      this.socket.on('friend-request-received', (data) => {
+        console.log('📢 friend-request-received:', data);
+        callback(data);
+      });
+    }
+  }
+
+  /**
+   * Called when someone removes you from their friend list
+   */
+  onFriendRemoved(callback) {
+    if (this.socket) {
+      this.socket.off('friend-removed');
+      this.socket.on('friend-removed', (data) => {
+        console.log('📢 friend-removed:', data);
+        callback(data);
+      });
+    }
+  }
+
   // ── Battle-specific listeners (set/cleared per BattleArenaView) ──
 
   onBattleUpdated(callback) {

@@ -56,11 +56,13 @@ import NavBar from '@/components/NavBar.vue';
 import AppToast from '@/components/Toast.vue';
 import { useRegisterSW } from 'virtual:pwa-register/vue';
 import { useNotificationStore } from '@/stores/notifications';
+import { useSocialStore } from '@/stores/social';
 import socketService from '@/services/socket';
 
 const router = useRouter();
 const authStore = useAuthStore();
 const notificationsStore = useNotificationStore();
+const socialStore = useSocialStore();
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 
 const offlineMessage = ref(null);
@@ -110,6 +112,23 @@ function initGlobalSocket() {
   socketService.onChallengeReceived(() => {
     console.log('App: New challenge received');
     window.dispatchEvent(new CustomEvent('battle-challenge-received'));
+  });
+
+  // Social real-time updates
+  socketService.onFriendRequestAccepted(() => {
+    console.log('App: Friend request accepted by someone');
+    socialStore.fetchFriends();
+    socialStore.fetchRequests();
+  });
+
+  socketService.onFriendRequestReceived(() => {
+    console.log('App: New friend request received');
+    socialStore.fetchRequests();
+  });
+
+  socketService.onFriendRemoved(() => {
+    console.log('App: A friend removed you');
+    socialStore.fetchFriends();
   });
 }
 
